@@ -1,63 +1,61 @@
 'use client'
 
-import { client } from "@/shopify-config";
-import { Product, Shop } from "@/types/storefront.types";
+import { addProductToCart, createCart, getCartById, getCustomers, getProducts } from "@/lib/shopify-queries";
+import { Cart, Product, ProductVariant } from "@/types/storefront.types";
 import { useEffect, useState } from "react";
+
 
 export default function Home() {
 
-  const [product, setProduct] = useState<Product>()
-
+  const [products, setProducts] = useState<Product[]>([])
+  const [cartId, setCartId] = useState<string>('')
+  
   useEffect(() => {
     const fetchData = async () => {
-      const productQuery = `
-        #graphql
-        query ProductQuery($handle: String) {
-          product(handle: $handle) {
-            handle
-            title
-            description
-            variants(first: 1) {
-              edges {
-                node {
-                  id
-                  title
-                  price {
-                    amount
-                  }
-                }
-              }
-            }
-          }
-        }
-      `;
-      
-      const {data, errors, extensions} = await client.request(productQuery, {
-        variables: {
-          handle: 'organic-cotton-shirt',
-        },
-      });
+      const data = await getProducts()
       if (data) {
-        console.log(data)
-        setProduct(data.product as Product)
+        const productsRequest = data.edges.map((edge) => {
+          return edge.node
+        })
+        setProducts(productsRequest)
       }
+
+      const cart = await fetch('/api/cart-get-cookie', {
+        method: 'GET',
+      }).then(res => res.json())
+      if (cart) {
+        setCartId(cart.cart.id)
+      }
+
+      const _ = await fetch('/api/get-customers').then(res => res.json())
+      console.log(_)
     }
     fetchData()
   }, [])
 
+  const addProduct = async (product: ProductVariant) => {
+    const data = await addProductToCart(cartId, product.id, 1)
+    console.log(data)
+  }
+
+  const ProductCard = ({product}:{product:ProductVariant}) => {
+    return (
+      <div className="flex flex-col w-60 h-60 p-4 justify-between bg-white shadow-md">
+        <div className="flex flex-col gap-4">
+          <span className="flex text-xl font-semibold">{product.price.amount}</span>
+          <button onClick={async () => addProduct(product)} className="flex text-blue-500">+ Add to cart</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex w-full h-screen p-10">
-      {product && <ProductCard product={product}/>}
+    <div className="flex w-full h-screen p-10 gap-10">
+      {products.length > 0 && (
+        products.map((product, n) => {
+          return <ProductCard key={n} product={product.variants.edges[0].node} />
+        })
+      )}
     </div>
   );
-}
-
-const ProductCard = ({product}:{product: Product}) => {
-  return (
-    <div className="flex flex-col w-80 h-fit p-4 gap-4 bg-white shadow-md">
-      <span className="flex text-xl font-semibold">{product.title}</span>
-      <p className="flex">{product.description}</p>
-      <span className="flex">{product.variants.edges[0].node.price.amount}</span>
-    </div>
-  )
 }

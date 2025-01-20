@@ -10,6 +10,7 @@
     "graphql-codegen": "graphql-codegen"
   },
   "dependencies": {
+    "@shopify/shopify-api": "^11.7.0",
     "@shopify/storefront-api-client": "^1.0.3",
     "next": "15.1.4",
     "react": "^19.0.0",
